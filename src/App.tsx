@@ -64,10 +64,11 @@ export default function App() {
   const [clipboard, setClipboard] = useState<CanvasItem[]>([]);
   const [isEditingText, setIsEditingText] = useState(false);
 
-  // Pen and eraser properties
+  // Pen, eraser and text properties
   const [penColor, setPenColor] = useState('#2563EB'); // Blue by default
   const [penWidth, setPenWidth] = useState(4); // 4px default as specified
   const [eraserSize, setEraserSize] = useState(25); // 25px default
+  const [textColor, setTextColor] = useState('#111827'); // Black/dark by default
 
   // Collapsible panels & Zen Mode
   const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(false);
@@ -618,8 +619,22 @@ export default function App() {
               y: (screenCenter.y - currentProject.viewport.y) / currentProject.viewport.zoom,
             };
 
-            const baseWidth = shapeType === 'circle' || shapeType === 'square' ? 140 : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow' ? 180 : 180;
-            const baseHeight = shapeType === 'circle' || shapeType === 'square' ? 140 : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow' ? 0 : 120;
+            const baseWidth =
+              shapeType === 'circle' || shapeType === 'square'
+                ? 140
+                : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow'
+                ? 180
+                : shapeType === 'triangle'
+                ? 160
+                : 180;
+            const baseHeight =
+              shapeType === 'circle' || shapeType === 'square'
+                ? 140
+                : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow'
+                ? 0
+                : shapeType === 'triangle'
+                ? 140
+                : 120;
 
             const newShape: CanvasItem = {
               id: 'shape_' + Math.random().toString(36).substring(2, 9),
@@ -653,6 +668,8 @@ export default function App() {
           onPenWidthChange={setPenWidth}
           eraserSize={eraserSize}
           onEraserSizeChange={setEraserSize}
+          textColor={textColor}
+          onTextColorChange={setTextColor}
           onUpdateSelectedItems={handleUpdateSelectedItems}
           onDuplicateSelected={handleDuplicateSelected}
           onDeleteSelected={handleDeleteSelected}
@@ -704,6 +721,8 @@ export default function App() {
           penColor={penColor}
           penWidth={penWidth}
           eraserSize={eraserSize}
+          textColor={textColor}
+          onTextColorChange={setTextColor}
           backgroundColor={currentProject.backgroundColor}
           gridStyle={currentProject.gridStyle}
           isDarkMode={isDarkMode}
