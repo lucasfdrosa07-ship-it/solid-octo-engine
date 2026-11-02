@@ -35,6 +35,8 @@ interface CanvasViewProps {
   backgroundColor: string;
   gridStyle: 'none' | 'dots' | 'grid';
   isDarkMode: boolean;
+  textColor?: string;
+  onTextColorChange?: (color: string) => void;
   onEditingTextChange?: (isEditing: boolean) => void;
 }
 
@@ -64,6 +66,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
   backgroundColor,
   gridStyle,
   isDarkMode,
+  textColor = '#111827',
+  onTextColorChange,
   onEditingTextChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,6 +94,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
   penColorRef.current = penColor;
   const penWidthRef = useRef(penWidth);
   penWidthRef.current = penWidth;
+  const textColorRef = useRef(textColor);
+  textColorRef.current = textColor;
   const activeToolRef = useRef(activeTool);
   activeToolRef.current = activeTool;
   const selectedIdsRef = useRef(selectedIds);
@@ -344,6 +350,18 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
           const rx = Math.max(1, item.width / 2);
           const ry = Math.max(1, item.height / 2);
           ctx.ellipse(item.x + rx, item.y + ry, rx, ry, 0, 0, Math.PI * 2);
+        } else if (item.shapeType === 'triangle') {
+          ctx.moveTo(item.x + item.width / 2, item.y);
+          ctx.lineTo(item.x + item.width, item.y + item.height);
+          ctx.lineTo(item.x, item.y + item.height);
+          ctx.closePath();
+        } else if (item.shapeType === 'trapezoid') {
+          const inset = item.width * 0.22;
+          ctx.moveTo(item.x + inset, item.y);
+          ctx.lineTo(item.x + item.width - inset, item.y);
+          ctx.lineTo(item.x + item.width, item.y + item.height);
+          ctx.lineTo(item.x, item.y + item.height);
+          ctx.closePath();
         } else if (item.shapeType === 'line') {
           ctx.moveTo(item.x, item.y);
           ctx.lineTo(item.x + item.width, item.y + item.height);
@@ -533,8 +551,22 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
   // Insert Shape Directly
   const insertShapeAt = useCallback(
     (shapeType: ShapeType, worldCenter: Point) => {
-      const baseWidth = shapeType === 'circle' || shapeType === 'square' ? 140 : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow' ? 180 : 180;
-      const baseHeight = shapeType === 'circle' || shapeType === 'square' ? 140 : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow' ? 0 : 120;
+      const baseWidth =
+        shapeType === 'circle' || shapeType === 'square'
+          ? 140
+          : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow'
+          ? 180
+          : shapeType === 'triangle'
+          ? 160
+          : 180;
+      const baseHeight =
+        shapeType === 'circle' || shapeType === 'square'
+          ? 140
+          : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow'
+          ? 0
+          : shapeType === 'triangle'
+          ? 140
+          : 120;
 
       const newShape: ShapeItem = {
         id: 'shape_' + Math.random().toString(36).substring(2, 9),
@@ -563,6 +595,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
   // Insert Text Directly
   const insertTextAt = useCallback(
     (worldPos: Point) => {
+      const chosenColor = textColorRef.current || textColor || (isDarkMode ? '#FFFFFF' : '#111827');
       const newText: TextItem = {
         id: 'text_' + Math.random().toString(36).substring(2, 9),
         type: 'text',
@@ -575,7 +608,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
         opacity: 1,
         strokeColor: '#000000',
         strokeWidth: 0,
-        color: isDarkMode ? '#FFFFFF' : '#111827',
+        color: chosenColor,
         fontSize: 24,
         fontFamily: 'Plus Jakarta Sans',
         fontWeight: 'normal',
@@ -1165,14 +1198,54 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
       {/* Inline Text Editor Overlay when user is typing */}
       {editingItem && editingScreenPos && (
         <div
-          className="absolute z-30"
+          className="absolute z-30 flex flex-col items-start gap-1"
           style={{
             left: `${editingScreenPos.x}px`,
-            top: `${editingScreenPos.y}px`,
+            top: `${editingScreenPos.y - 32}px`,
             transform: editingItem.rotation ? `rotate(${editingItem.rotation}deg)` : 'none',
             transformOrigin: 'top left',
           }}
         >
+          {/* Quick Floating Color Switcher for Text */}
+          <div
+            className="flex items-center gap-1.5 bg-white/95 dark:bg-slate-900/95 px-2.5 py-1 rounded-full shadow-lg border border-slate-200 dark:border-slate-800 pointer-events-auto"
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {[
+              { hex: '#2563EB', label: 'Azul' },
+              { hex: '#EF4444', label: 'Vermelho' },
+              { hex: '#111827', label: 'Preto' },
+              { hex: '#16A34A', label: 'Verde' },
+              { hex: '#FFFFFF', label: 'Branco' },
+            ].map((c) => {
+              const isSelected = (editingItem.color || '').toLowerCase() === c.hex.toLowerCase();
+              return (
+                <button
+                  key={c.hex}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // Don't blur textarea
+                    const updated = itemsRef.current.map((it) =>
+                      it.id === editingItem.id ? { ...it, color: c.hex } : it
+                    );
+                    onItemsChange(updated, false);
+                    onTextColorChange?.(c.hex);
+                  }}
+                  className={`w-4 h-4 rounded-full transition-all relative ${
+                    c.hex === '#FFFFFF' ? 'border border-slate-300 dark:border-slate-600' : ''
+                  } ${
+                    isSelected
+                      ? 'ring-2 ring-blue-600 ring-offset-1 scale-125'
+                      : 'hover:scale-110'
+                  }`}
+                  style={{ backgroundColor: c.hex }}
+                  title={`Cor: ${c.label}`}
+                />
+              );
+            })}
+          </div>
+
           <textarea
             ref={textInputRef}
             value={editingTextValue}
