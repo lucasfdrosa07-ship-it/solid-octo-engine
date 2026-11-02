@@ -15,6 +15,8 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
     { key: 'E', desc: 'Borracha Pontual' },
     { key: 'T', desc: 'Inserir Caixa de Texto' },
     { key: 'H', desc: 'Mão para Navegação (Pan)' },
+    { key: 'Segurar Shift', desc: 'Linhas 100% retas (0°, 45°, 90°) e formas proporcionais' },
+    { key: 'Shift + Mover', desc: 'Travar movimento em linha reta horizontal ou vertical' },
     { key: 'Ctrl + Z', desc: 'Desfazer última ação' },
     { key: 'Ctrl + Shift + Z', desc: 'Refazer ação' },
     { key: 'Ctrl + C / V', desc: 'Copiar e Colar objetos selecionados' },
