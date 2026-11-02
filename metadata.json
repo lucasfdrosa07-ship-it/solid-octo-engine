@@ -1,0 +1,6 @@
+{
+  "name": "QuadroStudio",
+  "description": "Editor visual livre e quadro branco digital interativo com desenho livre, apagamento parcial, elementos gráficos, textos ricos, camadas e persistência local.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
