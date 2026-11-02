@@ -38,6 +38,9 @@ interface PropertiesPanelProps {
   // Eraser settings
   eraserSize: number;
   onEraserSizeChange: (size: number) => void;
+  // Text settings
+  textColor?: string;
+  onTextColorChange?: (color: string) => void;
   // Item modification callbacks
   onUpdateSelectedItems: (updates: Partial<CanvasItem>) => void;
   onDuplicateSelected: () => void;
@@ -61,6 +64,14 @@ const PEN_COLORS = [
   { hex: '#16A34A', label: 'Verde' },
 ];
 
+const TEXT_COLORS = [
+  { hex: '#2563EB', label: 'Azul' },
+  { hex: '#EF4444', label: 'Vermelho' },
+  { hex: '#111827', label: 'Preto' },
+  { hex: '#16A34A', label: 'Verde' },
+  { hex: '#FFFFFF', label: 'Branco' },
+];
+
 const FONT_OPTIONS: FontFamily[] = [
   'Plus Jakarta Sans',
   'Inter',
@@ -79,6 +90,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onPenWidthChange,
   eraserSize,
   onEraserSizeChange,
+  textColor = '#111827',
+  onTextColorChange,
   onUpdateSelectedItems,
   onDuplicateSelected,
   onDeleteSelected,
@@ -280,13 +293,40 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <span className="text-slate-400 text-[11px]">px</span>
                   </div>
 
-                  <input
-                    type="color"
-                    value={singleItem.color}
-                    onChange={(e) => onUpdateSelectedItems({ color: e.target.value })}
-                    className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent"
-                    title="Cor do texto"
-                  />
+                  {/* Text Color Presets (Azul, Vermelho, Preto, Verde, Branco) + Custom Color Picker */}
+                  <div className="flex items-center gap-1.5">
+                    {TEXT_COLORS.map((c) => {
+                      const isSelected = (singleItem.color || '').toLowerCase() === c.hex.toLowerCase();
+                      return (
+                        <button
+                          key={c.hex}
+                          onClick={() => {
+                            onUpdateSelectedItems({ color: c.hex });
+                            onTextColorChange?.(c.hex);
+                          }}
+                          className={`w-5 h-5 rounded-full transition-all relative ${
+                            c.hex === '#FFFFFF' ? 'border border-slate-300 dark:border-slate-600' : ''
+                          } ${
+                            isSelected
+                              ? 'ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-slate-900 scale-110 shadow-sm'
+                              : 'hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: c.hex }}
+                          title={`Cor do texto: ${c.label}`}
+                        />
+                      );
+                    })}
+                    <input
+                      type="color"
+                      value={singleItem.color || '#111827'}
+                      onChange={(e) => {
+                        onUpdateSelectedItems({ color: e.target.value });
+                        onTextColorChange?.(e.target.value);
+                      }}
+                      className="w-5 h-5 rounded-full cursor-pointer border-0 bg-transparent ml-0.5"
+                      title="Outra cor de texto..."
+                    />
+                  </div>
 
                   <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
                     <button
@@ -544,11 +584,42 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 </span>
               )}
 
-              {/* Text Tool hint */}
+              {/* Text Tool Settings */}
               {activeTool === 'text' && (
-                <span className="text-slate-500 dark:text-slate-400 text-xs">
-                  Clique no quadro para adicionar texto
-                </span>
+                <div className="flex items-center gap-2.5">
+                  <span className="font-semibold text-slate-500 dark:text-slate-400">Cor do texto:</span>
+                  <div className="flex items-center gap-1.5">
+                    {TEXT_COLORS.map((c) => {
+                      const isSelected = (textColor || '#111827').toLowerCase() === c.hex.toLowerCase();
+                      return (
+                        <button
+                          key={c.hex}
+                          onClick={() => onTextColorChange?.(c.hex)}
+                          className={`w-5 h-5 rounded-full transition-all relative ${
+                            c.hex === '#FFFFFF' ? 'border border-slate-300 dark:border-slate-600' : ''
+                          } ${
+                            isSelected
+                              ? 'ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-slate-900 scale-110 shadow-sm'
+                              : 'hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: c.hex }}
+                          title={`Cor do texto: ${c.label}`}
+                        />
+                      );
+                    })}
+                    <input
+                      type="color"
+                      value={textColor || '#111827'}
+                      onChange={(e) => onTextColorChange?.(e.target.value)}
+                      className="w-5 h-5 rounded-full cursor-pointer border-0 bg-transparent ml-0.5"
+                      title="Outra cor de texto..."
+                    />
+                  </div>
+                  <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+                  <span className="text-slate-500 dark:text-slate-400 text-xs">
+                    Clique no quadro para adicionar texto
+                  </span>
+                </div>
               )}
 
               {/* Shape Tool hint */}
