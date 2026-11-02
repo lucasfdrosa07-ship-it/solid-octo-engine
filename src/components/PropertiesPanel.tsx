@@ -259,6 +259,61 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     />
                     <span className="text-[11px] font-mono">{Math.round((singleItem.opacity ?? 1) * 100)}%</span>
                   </div>
+
+                  {/* Straight alignment tools for lines & arrows */}
+                  {(singleItem.shapeType === 'line' ||
+                    singleItem.shapeType === 'arrow' ||
+                    singleItem.shapeType === 'double-arrow') && (
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <button
+                        onClick={() => onUpdateSelectedItems({ height: 0, rotation: 0 })}
+                        className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${
+                          singleItem.height === 0 && singleItem.rotation === 0
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                        title="Tornar perfeitamente horizontal (0°)"
+                      >
+                        Horizontal (0°)
+                      </button>
+                      <button
+                        onClick={() => onUpdateSelectedItems({ width: 0, rotation: 0 })}
+                        className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${
+                          singleItem.width === 0 && singleItem.rotation === 0
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                        title="Tornar perfeitamente vertical (90°)"
+                      >
+                        Vertical (90°)
+                      </button>
+                      <button
+                        onClick={() => {
+                          const len = Math.max(80, Math.abs(singleItem.width || singleItem.height || 140));
+                          onUpdateSelectedItems({
+                            width: Math.sign(singleItem.width || 1) * len,
+                            height: Math.sign(singleItem.height || 1) * len,
+                            rotation: 0,
+                          });
+                        }}
+                        className="px-1.5 py-0.5 rounded text-[11px] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors font-medium"
+                        title="Diagonal 45°"
+                      >
+                        45°
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Reset accidental rotation to 0° */}
+                  {singleItem.rotation !== 0 && (
+                    <button
+                      onClick={() => onUpdateSelectedItems({ rotation: 0 })}
+                      className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-colors"
+                      title="Resetar rotação para 0° (deixar alinhado reto)"
+                    >
+                      Endireitar (0°)
+                    </button>
+                  )}
                 </>
               )}
 
@@ -625,7 +680,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               {/* Shape Tool hint */}
               {activeTool === 'shape' && (
                 <span className="text-slate-500 dark:text-slate-400 text-xs">
-                  Clique no menu de formas à esquerda para escolher
+                  Arraste no quadro para desenhar a forma (segure <strong>Shift</strong> para linhas 100% retas ou formas proporcionais)
                 </span>
               )}
             </>
