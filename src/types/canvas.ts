@@ -1,6 +1,15 @@
 export type ToolType = 'select' | 'pen' | 'eraser' | 'text' | 'shape' | 'hand';
 
-export type ShapeType = 'rect' | 'square' | 'circle' | 'ellipse' | 'line' | 'arrow' | 'double-arrow';
+export type ShapeType =
+  | 'rect'
+  | 'square'
+  | 'circle'
+  | 'ellipse'
+  | 'triangle'
+  | 'trapezoid'
+  | 'line'
+  | 'arrow'
+  | 'double-arrow';
 
 export type FontFamily = 'Plus Jakarta Sans' | 'Inter' | 'Roboto' | 'Arial' | 'Caveat' | 'JetBrains Mono';
 
