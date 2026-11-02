@@ -83,11 +83,15 @@ export function getItemBounds(item: CanvasItem): { x: number; y: number; width: 
   if (item.type === 'stroke') {
     return calculateStrokeBounds(item.points, item.strokeWidth);
   }
+  const minX = Math.min(item.x, item.x + item.width);
+  const minY = Math.min(item.y, item.y + item.height);
+  const w = Math.abs(item.width);
+  const h = Math.abs(item.height);
   return {
-    x: item.x,
-    y: item.y,
-    width: item.width,
-    height: item.height,
+    x: minX,
+    y: minY,
+    width: Math.max(1, w),
+    height: Math.max(1, h),
   };
 }
 
@@ -147,13 +151,29 @@ export function isPointInItem(worldPoint: Point, item: CanvasItem): boolean {
   // Un-rotate the point for simpler rectangle hit test
   const unrotated = item.rotation !== 0 ? rotatePoint(worldPoint, center, -item.rotation) : worldPoint;
 
+  // Exact segment distance hit test for lines and arrows
+  if (
+    item.type === 'shape' &&
+    (item.shapeType === 'line' || item.shapeType === 'arrow' || item.shapeType === 'double-arrow')
+  ) {
+    const from = { x: item.x, y: item.y };
+    const to = { x: item.x + item.width, y: item.y + item.height };
+    const tolerance = Math.max(10, item.strokeWidth + 4);
+    const { dist } = pointToSegmentDistance(unrotated, from, to);
+    return dist <= tolerance;
+  }
+
   const hitTolerance = Math.max(6, item.strokeWidth / 2);
+  const minX = Math.min(item.x, item.x + item.width);
+  const maxX = Math.max(item.x, item.x + item.width);
+  const minY = Math.min(item.y, item.y + item.height);
+  const maxY = Math.max(item.y, item.y + item.height);
 
   return (
-    unrotated.x >= item.x - hitTolerance &&
-    unrotated.x <= item.x + item.width + hitTolerance &&
-    unrotated.y >= item.y - hitTolerance &&
-    unrotated.y <= item.y + item.height + hitTolerance
+    unrotated.x >= minX - hitTolerance &&
+    unrotated.x <= maxX + hitTolerance &&
+    unrotated.y >= minY - hitTolerance &&
+    unrotated.y <= maxY + hitTolerance
   );
 }
 
