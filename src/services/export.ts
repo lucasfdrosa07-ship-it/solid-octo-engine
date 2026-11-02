@@ -38,6 +38,18 @@ export function renderItemsToCanvas(
         const rx = Math.max(1, item.width / 2);
         const ry = Math.max(1, item.height / 2);
         ctx.ellipse(item.x + rx, item.y + ry, rx, ry, 0, 0, Math.PI * 2);
+      } else if (item.shapeType === 'triangle') {
+        ctx.moveTo(item.x + item.width / 2, item.y);
+        ctx.lineTo(item.x + item.width, item.y + item.height);
+        ctx.lineTo(item.x, item.y + item.height);
+        ctx.closePath();
+      } else if (item.shapeType === 'trapezoid') {
+        const inset = item.width * 0.22;
+        ctx.moveTo(item.x + inset, item.y);
+        ctx.lineTo(item.x + item.width - inset, item.y);
+        ctx.lineTo(item.x + item.width, item.y + item.height);
+        ctx.lineTo(item.x, item.y + item.height);
+        ctx.closePath();
       } else if (item.shapeType === 'line') {
         ctx.moveTo(item.x, item.y);
         ctx.lineTo(item.x + item.width, item.y + item.height);
@@ -213,6 +225,18 @@ export function exportToSvg(
         const rx = item.width / 2;
         const ry = item.height / 2;
         elementsSvg += `  <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" opacity="${item.opacity}"${transform} />\n`;
+      } else if (item.shapeType === 'triangle') {
+        const p1 = `${x + item.width / 2},${y}`;
+        const p2 = `${x + item.width},${y + item.height}`;
+        const p3 = `${x},${y + item.height}`;
+        elementsSvg += `  <polygon points="${p1} ${p2} ${p3}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" opacity="${item.opacity}"${transform} />\n`;
+      } else if (item.shapeType === 'trapezoid') {
+        const inset = item.width * 0.22;
+        const p1 = `${x + inset},${y}`;
+        const p2 = `${x + item.width - inset},${y}`;
+        const p3 = `${x + item.width},${y + item.height}`;
+        const p4 = `${x},${y + item.height}`;
+        elementsSvg += `  <polygon points="${p1} ${p2} ${p3} ${p4}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" opacity="${item.opacity}"${transform} />\n`;
       } else if (item.shapeType === 'line') {
         elementsSvg += `  <line x1="${x}" y1="${y}" x2="${x + item.width}" y2="${y + item.height}" stroke="${item.strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" opacity="${item.opacity}"${transform} />\n`;
       } else if (item.shapeType === 'arrow' || item.shapeType === 'double-arrow') {
