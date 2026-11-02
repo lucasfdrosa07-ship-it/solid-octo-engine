@@ -43,6 +43,7 @@ interface CanvasViewProps {
 type InteractionMode =
   | 'none'
   | 'drawing'
+  | 'drawing-shape'
   | 'erasing'
   | 'panning'
   | 'moving'
@@ -82,6 +83,17 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
 
   const [activeStrokePoints, setActiveStrokePoints] = useState<Point[]>([]);
   const activeStrokePointsRef = useRef<Point[]>([]);
+
+  const [shapeDraft, setShapeDraft] = useState<{
+    shapeType: ShapeType;
+    start: Point;
+    current: Point;
+  } | null>(null);
+  const shapeDraftRef = useRef<{
+    shapeType: ShapeType;
+    start: Point;
+    current: Point;
+  } | null>(null);
 
   const [selectionBox, setSelectionBox] = useState<{ start: Point; current: Point } | null>(null);
 
@@ -147,6 +159,50 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
     onEditingTextChange?.(editingTextId !== null);
   }, [editingTextId, onEditingTextChange]);
 
+  // Insert Shape Directly (Centered)
+  const insertShapeAt = useCallback(
+    (shapeType: ShapeType, worldCenter: Point) => {
+      const baseWidth =
+        shapeType === 'circle' || shapeType === 'square'
+          ? 140
+          : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow'
+          ? 180
+          : shapeType === 'triangle'
+          ? 160
+          : 180;
+      const baseHeight =
+        shapeType === 'circle' || shapeType === 'square'
+          ? 140
+          : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow'
+          ? 0
+          : shapeType === 'triangle'
+          ? 140
+          : 120;
+
+      const newShape: ShapeItem = {
+        id: 'shape_' + Math.random().toString(36).substring(2, 9),
+        type: 'shape',
+        shapeType,
+        x: Math.round(worldCenter.x - baseWidth / 2),
+        y: Math.round(worldCenter.y - (baseHeight > 0 ? baseHeight / 2 : 0)),
+        width: baseWidth,
+        height: baseHeight,
+        rotation: 0,
+        opacity: 1,
+        strokeColor: '#2563EB',
+        strokeWidth: 3,
+        fillColor: 'transparent',
+        hasFill: false,
+      };
+
+      const updated = [...itemsRef.current, newShape];
+      onItemsChange(updated, true);
+      onSelectIds([newShape.id]);
+      onToolChange('select');
+    },
+    [onItemsChange, onSelectIds, onToolChange]
+  );
+
   // Centralized interaction finalizer that can never double-commit or leave stale blue boxes
   const finalizeInteraction = useCallback(() => {
     if (!isPointerDownRef.current && interactionModeRef.current === 'none') {
@@ -189,6 +245,55 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
       };
 
       onItemsChange([...currentItems, newStroke], true);
+    } else if (currentMode === 'drawing-shape' && shapeDraftRef.current) {
+      const draft = shapeDraftRef.current;
+      const dist = Math.hypot(draft.current.x - draft.start.x, draft.current.y - draft.start.y);
+
+      if (dist < 8) {
+        // Just clicked: insert standard straight shape
+        insertShapeAt(draft.shapeType, draft.start);
+      } else {
+        let x = draft.start.x;
+        let y = draft.start.y;
+        let w = draft.current.x - draft.start.x;
+        let h = draft.current.y - draft.start.y;
+
+        const isLine =
+          draft.shapeType === 'line' ||
+          draft.shapeType === 'arrow' ||
+          draft.shapeType === 'double-arrow';
+
+        if (!isLine) {
+          if (w < 0) {
+            x += w;
+            w = Math.abs(w);
+          }
+          if (h < 0) {
+            y += h;
+            h = Math.abs(h);
+          }
+        }
+
+        const newShape: ShapeItem = {
+          id: 'shape_' + Math.random().toString(36).substring(2, 9),
+          type: 'shape',
+          shapeType: draft.shapeType,
+          x: Math.round(x),
+          y: Math.round(y),
+          width: Math.round(w),
+          height: Math.round(h),
+          rotation: 0,
+          opacity: 1,
+          strokeColor: '#2563EB',
+          strokeWidth: 3,
+          fillColor: 'transparent',
+          hasFill: false,
+        };
+
+        onItemsChange([...currentItems, newShape], true);
+        onSelectIds([newShape.id]);
+        onToolChange('select');
+      }
     } else if (
       currentMode === 'erasing' ||
       currentMode === 'moving' ||
@@ -202,10 +307,12 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
     isPointerDownRef.current = false;
     interactionModeRef.current = 'none';
     activeStrokePointsRef.current = [];
+    shapeDraftRef.current = null;
     setInteractionMode('none');
     setActiveStrokePoints([]);
+    setShapeDraft(null);
     setSelectionBox(null);
-  }, [onItemsChange]);
+  }, [insertShapeAt, onItemsChange, onSelectIds, onToolChange]);
 
   // Global window pointerup & blur safety listeners
   useEffect(() => {
@@ -438,6 +545,78 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
       drawSmoothStroke(ctx, activeStrokePoints, penColor, penWidth, 1);
     }
 
+    // 4.5 Render Shape Draft Live Preview
+    if (shapeDraft) {
+      ctx.save();
+      ctx.strokeStyle = '#2563EB';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 4]);
+      ctx.fillStyle = 'rgba(37, 99, 235, 0.08)';
+
+      let x = shapeDraft.start.x;
+      let y = shapeDraft.start.y;
+      let w = shapeDraft.current.x - shapeDraft.start.x;
+      let h = shapeDraft.current.y - shapeDraft.start.y;
+
+      ctx.beginPath();
+      if (
+        shapeDraft.shapeType === 'line' ||
+        shapeDraft.shapeType === 'arrow' ||
+        shapeDraft.shapeType === 'double-arrow'
+      ) {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w, y + h);
+        ctx.stroke();
+
+        if (shapeDraft.shapeType === 'arrow' || shapeDraft.shapeType === 'double-arrow') {
+          const angle = Math.atan2(h, w);
+          const headLen = 14;
+          ctx.beginPath();
+          ctx.moveTo(x + w, y + h);
+          ctx.lineTo(x + w - headLen * Math.cos(angle - Math.PI / 6), y + h - headLen * Math.sin(angle - Math.PI / 6));
+          ctx.moveTo(x + w, y + h);
+          ctx.lineTo(x + w - headLen * Math.cos(angle + Math.PI / 6), y + h - headLen * Math.sin(angle + Math.PI / 6));
+          if (shapeDraft.shapeType === 'double-arrow') {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + headLen * Math.cos(angle - Math.PI / 6), y + headLen * Math.sin(angle - Math.PI / 6));
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + headLen * Math.cos(angle + Math.PI / 6), y + headLen * Math.sin(angle + Math.PI / 6));
+          }
+          ctx.stroke();
+        }
+      } else {
+        if (w < 0) {
+          x += w;
+          w = Math.abs(w);
+        }
+        if (h < 0) {
+          y += h;
+          h = Math.abs(h);
+        }
+
+        if (shapeDraft.shapeType === 'rect' || shapeDraft.shapeType === 'square') {
+          ctx.roundRect(x, y, w, h, 6);
+        } else if (shapeDraft.shapeType === 'circle' || shapeDraft.shapeType === 'ellipse') {
+          ctx.ellipse(x + w / 2, y + h / 2, Math.max(1, w / 2), Math.max(1, h / 2), 0, 0, Math.PI * 2);
+        } else if (shapeDraft.shapeType === 'triangle') {
+          ctx.moveTo(x + w / 2, y);
+          ctx.lineTo(x + w, y + h);
+          ctx.lineTo(x, y + h);
+          ctx.closePath();
+        } else if (shapeDraft.shapeType === 'trapezoid') {
+          const inset = w * 0.22;
+          ctx.moveTo(x + inset, y);
+          ctx.lineTo(x + w - inset, y);
+          ctx.lineTo(x + w, y + h);
+          ctx.lineTo(x, y + h);
+          ctx.closePath();
+        }
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     ctx.restore(); // Restore world transform
 
     // 5. Render Selection Box and Handles (Screen Coordinates)
@@ -546,51 +725,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
     selectedItems,
     selectionBounds,
     editingTextId,
+    shapeDraft,
   ]);
-
-  // Insert Shape Directly
-  const insertShapeAt = useCallback(
-    (shapeType: ShapeType, worldCenter: Point) => {
-      const baseWidth =
-        shapeType === 'circle' || shapeType === 'square'
-          ? 140
-          : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow'
-          ? 180
-          : shapeType === 'triangle'
-          ? 160
-          : 180;
-      const baseHeight =
-        shapeType === 'circle' || shapeType === 'square'
-          ? 140
-          : shapeType === 'line' || shapeType === 'arrow' || shapeType === 'double-arrow'
-          ? 0
-          : shapeType === 'triangle'
-          ? 140
-          : 120;
-
-      const newShape: ShapeItem = {
-        id: 'shape_' + Math.random().toString(36).substring(2, 9),
-        type: 'shape',
-        shapeType,
-        x: worldCenter.x - baseWidth / 2,
-        y: worldCenter.y - (baseHeight > 0 ? baseHeight / 2 : 0),
-        width: baseWidth,
-        height: baseHeight,
-        rotation: 0,
-        opacity: 1,
-        strokeColor: '#2563EB',
-        strokeWidth: 3,
-        fillColor: 'transparent',
-        hasFill: false,
-      };
-
-      const updated = [...itemsRef.current, newShape];
-      onItemsChange(updated, true);
-      onSelectIds([newShape.id]);
-      onToolChange('select');
-    },
-    [onItemsChange, onSelectIds, onToolChange]
-  );
 
   // Insert Text Directly
   const insertTextAt = useCallback(
@@ -760,10 +896,15 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
       return;
     }
 
-    // TOOL: SHAPE
+    // TOOL: SHAPE (Interactive drag-to-draw with live straight snapping)
     if (activeTool === 'shape') {
-      isPointerDownRef.current = false;
-      insertShapeAt(selectedShapeType, worldPt);
+      interactionModeRef.current = 'drawing-shape';
+      setInteractionMode('drawing-shape');
+      dragStartRef.current.worldStart = worldPt;
+      dragStartRef.current.pointerStart = screenPt;
+      const draft = { shapeType: selectedShapeType, start: worldPt, current: worldPt };
+      shapeDraftRef.current = draft;
+      setShapeDraft(draft);
       return;
     }
 
@@ -862,10 +1003,65 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
 
     const mode = interactionModeRef.current;
 
-    // DRAWING
+    // DRAWING (With Shift for straight lines)
     if (mode === 'drawing' && isPointerDownRef.current) {
+      if (e.shiftKey && activeStrokePointsRef.current.length > 0) {
+        const start = activeStrokePointsRef.current[0];
+        let dx = worldPt.x - start.x;
+        let dy = worldPt.y - start.y;
+        if (Math.abs(dy) < 18 || Math.abs(dx) >= Math.abs(dy)) {
+          dy = 0; // Pure horizontal straight line
+        } else {
+          dx = 0; // Pure vertical straight line
+        }
+        const straight = [start, { x: start.x + dx, y: start.y + dy }];
+        activeStrokePointsRef.current = straight;
+        setActiveStrokePoints(straight);
+        return;
+      }
       activeStrokePointsRef.current = [...activeStrokePointsRef.current, worldPt];
       setActiveStrokePoints(activeStrokePointsRef.current);
+      return;
+    }
+
+    // DRAWING SHAPE (With auto-straight snapping for lines/arrows and square/circle proportions)
+    if (mode === 'drawing-shape' && isPointerDownRef.current && shapeDraftRef.current) {
+      const start = shapeDraftRef.current.start;
+      let rawDx = worldPt.x - start.x;
+      let rawDy = worldPt.y - start.y;
+
+      const isLine =
+        selectedShapeType === 'line' ||
+        selectedShapeType === 'arrow' ||
+        selectedShapeType === 'double-arrow';
+
+      if (isLine) {
+        // Auto-snap to straight horizontal (0°) or vertical (90°)
+        if (Math.abs(rawDy) < 18 || (e.shiftKey && Math.abs(rawDx) >= Math.abs(rawDy))) {
+          rawDy = 0; // Snap perfectly horizontal
+        } else if (Math.abs(rawDx) < 18 || (e.shiftKey && Math.abs(rawDy) > Math.abs(rawDx))) {
+          rawDx = 0; // Snap perfectly vertical
+        } else if (e.shiftKey) {
+          // Snap to 45° diagonal
+          const side = Math.max(Math.abs(rawDx), Math.abs(rawDy));
+          rawDx = Math.sign(rawDx || 1) * side;
+          rawDy = Math.sign(rawDy || 1) * side;
+        }
+      } else {
+        if (selectedShapeType === 'square' || selectedShapeType === 'circle' || e.shiftKey) {
+          const side = Math.max(Math.abs(rawDx), Math.abs(rawDy));
+          rawDx = Math.sign(rawDx || 1) * side;
+          rawDy = Math.sign(rawDy || 1) * side;
+        }
+      }
+
+      const nextDraft = {
+        shapeType: selectedShapeType,
+        start,
+        current: { x: Math.round(start.x + rawDx), y: Math.round(start.y + rawDy) },
+      };
+      shapeDraftRef.current = nextDraft;
+      setShapeDraft(nextDraft);
       return;
     }
 
@@ -888,10 +1084,19 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
       return;
     }
 
-    // MOVING ITEMS
+    // MOVING ITEMS (With Shift for horizontal/vertical axis lock)
     if (mode === 'moving' && isPointerDownRef.current) {
-      const dx = worldPt.x - dragStartRef.current.worldStart.x;
-      const dy = worldPt.y - dragStartRef.current.worldStart.y;
+      let dx = worldPt.x - dragStartRef.current.worldStart.x;
+      let dy = worldPt.y - dragStartRef.current.worldStart.y;
+
+      // Shift key constrains to horizontal or vertical axis
+      if (e.shiftKey) {
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          dy = 0;
+        } else {
+          dx = 0;
+        }
+      }
 
       const updated = itemsRef.current.map((it) => {
         const start = dragStartRef.current.itemsStartPos.get(it.id);
@@ -899,19 +1104,19 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
           if (it.type === 'stroke') {
             return {
               ...it,
-              x: start.x + dx,
-              y: start.y + dy,
+              x: Math.round(start.x + dx),
+              y: Math.round(start.y + dy),
               points: (start as any).points.map((p: Point) => ({
-                x: p.x + dx,
-                y: p.y + dy,
+                x: Math.round(p.x + dx),
+                y: Math.round(p.y + dy),
                 pressure: p.pressure,
               })),
             };
           }
           return {
             ...it,
-            x: start.x + dx,
-            y: start.y + dy,
+            x: Math.round(start.x + dx),
+            y: Math.round(start.y + dy),
           };
         }
         return it;
@@ -921,7 +1126,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
       return;
     }
 
-    // RESIZING ITEMS
+    // RESIZING ITEMS (Lines snap to 0 without false min-height slope; shapes hold aspect ratio with Shift)
     if (mode === 'resizing' && isPointerDownRef.current) {
       const handleId = dragStartRef.current.handleId;
       const dx = worldPt.x - dragStartRef.current.worldStart.x;
@@ -931,30 +1136,70 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
         const start = dragStartRef.current.itemsStartPos.get(it.id);
         if (!start) return it;
 
+        const isLine =
+          it.type === 'shape' &&
+          (it.shapeType === 'line' || it.shapeType === 'arrow' || it.shapeType === 'double-arrow');
+
         let newX = start.x;
         let newY = start.y;
         let newW = start.width;
         let newH = start.height;
 
-        if (handleId?.includes('e')) newW = Math.max(10, start.width + dx);
-        if (handleId?.includes('s')) newH = Math.max(10, start.height + dy);
-        if (handleId?.includes('w')) {
-          const wDiff = Math.min(start.width - 10, dx);
-          newX = start.x + wDiff;
-          newW = start.width - wDiff;
-        }
-        if (handleId?.includes('n')) {
-          const hDiff = Math.min(start.height - 10, dy);
-          newY = start.y + hDiff;
-          newH = start.height - hDiff;
+        if (isLine) {
+          if (handleId?.includes('e')) newW = start.width + dx;
+          if (handleId?.includes('w')) {
+            newX = start.x + dx;
+            newW = start.width - dx;
+          }
+          if (handleId?.includes('s')) newH = start.height + dy;
+          if (handleId?.includes('n')) {
+            newY = start.y + dy;
+            newH = start.height - dy;
+          }
+
+          // Auto-straight snap for lines
+          if (Math.abs(newH) < 16 || (e.shiftKey && Math.abs(newW) >= Math.abs(newH))) {
+            newH = 0; // Perfectly horizontal straight line!
+          }
+          if (Math.abs(newW) < 16 || (e.shiftKey && Math.abs(newH) > Math.abs(newW))) {
+            newW = 0; // Perfectly vertical straight line!
+          }
+          if (e.shiftKey && newW !== 0 && newH !== 0) {
+            const side = Math.max(Math.abs(newW), Math.abs(newH));
+            newW = Math.sign(newW || 1) * side;
+            newH = Math.sign(newH || 1) * side;
+          }
+        } else {
+          if (handleId?.includes('e')) newW = Math.max(10, start.width + dx);
+          if (handleId?.includes('s')) newH = Math.max(10, start.height + dy);
+          if (handleId?.includes('w')) {
+            const wDiff = Math.min(start.width - 10, dx);
+            newX = start.x + wDiff;
+            newW = start.width - wDiff;
+          }
+          if (handleId?.includes('n')) {
+            const hDiff = Math.min(start.height - 10, dy);
+            newY = start.y + hDiff;
+            newH = start.height - hDiff;
+          }
+
+          // Holding Shift: lock aspect ratio
+          if (e.shiftKey && start.width > 0 && start.height > 0) {
+            const ratio = start.width / start.height;
+            if (newW / ratio > newH) {
+              newH = Math.round(newW / ratio);
+            } else {
+              newW = Math.round(newH * ratio);
+            }
+          }
         }
 
         return {
           ...it,
-          x: newX,
-          y: newY,
-          width: newW,
-          height: newH,
+          x: Math.round(newX),
+          y: Math.round(newY),
+          width: Math.round(newW),
+          height: Math.round(newH),
         };
       });
 
