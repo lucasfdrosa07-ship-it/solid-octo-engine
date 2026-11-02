@@ -10,6 +10,7 @@ import {
   Minus,
   MoveRight,
   ArrowLeftRight,
+  Triangle,
   Hand,
   Shapes,
   ChevronLeft,
@@ -18,6 +19,20 @@ import {
   PanelLeftOpen
 } from 'lucide-react';
 import { ToolType, ShapeType } from '../types/canvas';
+
+const TrapezoidIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <polygon points="6 5 18 5 22 19 2 19" />
+  </svg>
+);
 
 interface ToolbarProps {
   activeTool: ToolType;
@@ -60,6 +75,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     { type: 'square', label: 'Quadrado', icon: <Square className="w-4 h-4" /> },
     { type: 'circle', label: 'Círculo', icon: <Circle className="w-4 h-4" /> },
     { type: 'ellipse', label: 'Elipse', icon: <Circle className="w-4 h-4 scale-x-125" /> },
+    { type: 'triangle', label: 'Triângulo', icon: <Triangle className="w-4 h-4" /> },
+    { type: 'trapezoid', label: 'Trapézio', icon: <TrapezoidIcon className="w-4 h-4" /> },
     { type: 'line', label: 'Linha Reta', icon: <Minus className="w-4 h-4 rotate-45" /> },
     { type: 'arrow', label: 'Seta Simples', icon: <MoveRight className="w-4 h-4" /> },
     { type: 'double-arrow', label: 'Seta Dupla', icon: <ArrowLeftRight className="w-4 h-4" /> },
